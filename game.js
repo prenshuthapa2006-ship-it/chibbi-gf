@@ -8,7 +8,7 @@ function resize() {
 resize();
 window.addEventListener("resize", resize);
 
-// 🎵 BACKGROUND MUSIC
+// AUDIO
 const bgm = new Audio("bgm.mp3");
 bgm.loop = true;
 bgm.volume = 0.4;
@@ -22,26 +22,45 @@ document.getElementById("musicBtn").onclick = () => {
 // IMAGES
 const playerImg = new Image();
 playerImg.src = "gf.png";
+
 const enemyImg = new Image();
 enemyImg.src = "you.png";
 
-// CAMERA
-const camera = { x: 0, y: 0 };
+const healerImg = new Image();
+healerImg.src = "healer.png";
+
+const stealerImg = new Image();
+stealerImg.src = "stealer.png";
 
 // GAME STATE
 let bullets = [];
 let enemies = [];
+let healer = null;
+let stealer = null;
 let score = 0;
+let health = 100;
 let gameOver = false;
 
 // PLAYER
 const player = {
   x: canvas.width / 2,
   y: canvas.height / 2,
-  size: 140
+  size: 130
 };
 
-// 💖 HEART
+// MOVEMENT
+window.addEventListener("mousemove", e => {
+  player.x = e.clientX;
+  player.y = e.clientY;
+});
+
+canvas.addEventListener("touchmove", e => {
+  const t = e.touches[0];
+  player.x = t.clientX;
+  player.y = t.clientY;
+});
+
+// HEART DRAW
 function drawHeart(x, y, s) {
   ctx.fillStyle = "hotpink";
   ctx.beginPath();
@@ -51,78 +70,75 @@ function drawHeart(x, y, s) {
   ctx.fill();
 }
 
-// 🔫 AUTO SHOOT
+// AUTO SHOOT
 setInterval(() => {
   if (gameOver || enemies.length === 0) return;
 
-  const t = enemies[0];
-  const angle = Math.atan2(t.y - player.y, t.x - player.x);
+  const target = enemies[0];
+  const angle = Math.atan2(target.y - player.y, target.x - player.x);
 
   bullets.push({
     x: player.x,
     y: player.y,
-    vx: Math.cos(angle) * 9,
-    vy: Math.sin(angle) * 9,
-    size: 12
+    vx: Math.cos(angle) * 8,
+    vy: Math.sin(angle) * 8,
+    size: 10
   });
-}, 260);
+}, 300);
 
-// 👿 SPAWN
+// ENEMY SPAWN
 function spawnEnemy(isBoss = false) {
   const side = Math.floor(Math.random() * 4);
   let x, y;
 
-  if (side === 0) { x = Math.random() * canvas.width; y = -200; }
-  else if (side === 1) { x = Math.random() * canvas.width; y = canvas.height + 200; }
-  else if (side === 2) { x = -200; y = Math.random() * canvas.height; }
-  else { x = canvas.width + 200; y = Math.random() * canvas.height; }
+  if (side === 0) { x = Math.random() * canvas.width; y = -100; }
+  else if (side === 1) { x = Math.random() * canvas.width; y = canvas.height + 100; }
+  else if (side === 2) { x = -100; y = Math.random() * canvas.height; }
+  else { x = canvas.width + 100; y = Math.random() * canvas.height; }
 
   enemies.push({
     x,
     y,
-    size: isBoss ? 220 : 110,
-    speed: isBoss ? 0.7 : 1.6,
-    hp: isBoss ? 6 : 1,
+    size: isBoss ? 200 : 100,
+    speed: isBoss ? 0.8 : 1.6,
+    hp: isBoss ? 5 : 1,
     boss: isBoss
   });
 }
 
-// 🖱️ PC MOVE
-window.addEventListener("mousemove", e => {
-  player.x = e.clientX + camera.x;
-  player.y = e.clientY + camera.y;
-});
+// HEALER SPAWN
+function spawnHealer() {
+  healer = {
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    size: 90
+  };
 
-// 📱 MOBILE MOVE
-canvas.addEventListener("touchmove", e => {
-  const t = e.touches[0];
-  player.x = t.clientX + camera.x;
-  player.y = t.clientY + camera.y;
-});
+  stealer = {
+    x: 0,
+    y: 0,
+    size: 90,
+    speed: 2
+  };
+}
 
-// 🔄 LOOP
+setInterval(() => {
+  if (!healer && !gameOver) spawnHealer();
+}, 15000);
+
+// LOOP
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (!gameOver) {
-    // 🎥 SMOOTH CAMERA FOLLOW
-    camera.x += ((player.x - canvas.width / 2) - camera.x) * 0.08;
-    camera.y += ((player.y - canvas.height / 2) - camera.y) * 0.08;
-
-    ctx.save();
-    ctx.translate(-camera.x, -camera.y);
 
     // PLAYER
-    ctx.shadowColor = "hotpink";
-    ctx.shadowBlur = 30;
-    ctx.drawImage(
-      playerImg,
+    ctx.drawImage(playerImg,
       player.x - player.size / 2,
       player.y - player.size / 2,
       player.size,
       player.size
     );
-    ctx.shadowBlur = 0;
 
     // BULLETS
     bullets.forEach((b, bi) => {
@@ -140,18 +156,16 @@ function gameLoop() {
       e.x += (dx / dist) * e.speed;
       e.y += (dy / dist) * e.speed;
 
-      ctx.shadowColor = e.boss ? "purple" : "red";
-      ctx.shadowBlur = e.boss ? 35 : 20;
-      ctx.drawImage(
-        enemyImg,
+      ctx.drawImage(enemyImg,
         e.x - e.size / 2,
         e.y - e.size / 2,
         e.size,
         e.size
       );
-      ctx.shadowBlur = 0;
 
-      if (dist < e.size / 2 + player.size / 2) gameOver = true;
+      if (dist < e.size / 2 + player.size / 2) {
+        health -= 0.5;
+      }
 
       bullets.forEach((b, bi) => {
         if (Math.hypot(e.x - b.x, e.y - b.y) < e.size / 2) {
@@ -165,31 +179,66 @@ function gameLoop() {
       });
     });
 
-    ctx.restore();
+    // HEALER
+    if (healer) {
+      ctx.drawImage(healerImg,
+        healer.x - healer.size / 2,
+        healer.y - healer.size / 2,
+        healer.size,
+        healer.size
+      );
+
+      if (Math.hypot(player.x - healer.x, player.y - healer.y) < 70) {
+        health = Math.min(100, health + 30);
+        healer = null;
+        stealer = null;
+      }
+    }
+
+    // STEALER TAKES HEALER
+    if (stealer && healer) {
+      const dx = healer.x - stealer.x;
+      const dy = healer.y - stealer.y;
+      const dist = Math.hypot(dx, dy);
+
+      stealer.x += (dx / dist) * stealer.speed;
+      stealer.y += (dy / dist) * stealer.speed;
+
+      ctx.drawImage(stealerImg,
+        stealer.x - stealer.size / 2,
+        stealer.y - stealer.size / 2,
+        stealer.size,
+        stealer.size
+      );
+
+      if (dist < 40) {
+        healer = null;
+        stealer = null;
+      }
+    }
 
     if (Math.random() < 0.02) spawnEnemy();
     if (Math.random() < 0.002) spawnEnemy(true);
+
+    if (health <= 0) gameOver = true;
   }
 
   // UI
   ctx.fillStyle = "white";
-  ctx.font = "22px sans-serif";
-  ctx.fillText(`Score: ${score}`, 20, 35);
+  ctx.fillText("Score: " + score, 20, 30);
+  ctx.fillText("Health: " + Math.floor(health), 20, 55);
 
   if (gameOver) {
-    ctx.font = "42px sans-serif";
+    ctx.font = "40px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(
-      "GAME OVER 💔 Tap to Restart",
+    ctx.fillText("GAME OVER 💔 Tap to Restart",
       canvas.width / 2,
-      canvas.height / 2
-    );
+      canvas.height / 2);
   }
 
   requestAnimationFrame(gameLoop);
 }
 
-// RESTART
 canvas.addEventListener("click", restart);
 canvas.addEventListener("touchstart", restart);
 
@@ -198,8 +247,12 @@ function restart() {
   bullets = [];
   enemies = [];
   score = 0;
+  health = 100;
+  healer = null;
+  stealer = null;
   gameOver = false;
 }
 
 gameLoop();
+
 
