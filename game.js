@@ -195,43 +195,61 @@ function gameLoop(){
       stealer=null;
     }
   }
-
-  /* ===== STEALER SAFE FIX ===== */
-let removeHealer = false;
-let removeStealer = false;
+/* ===== STEALER CINEMATIC VERSION ===== */
 
 if (stealer) {
-    let target = healer ? healer : player;
 
-    if (target) {
-        let angle = Math.atan2(target.y - stealer.y, target.x - stealer.x);
+    // If healer exists → chase healer
+    if (healer) {
+
+        let angle = Math.atan2(healer.y - stealer.y, healer.x - stealer.x);
         stealer.x += Math.cos(angle) * stealer.speed;
         stealer.y += Math.sin(angle) * stealer.speed;
-    }
 
-    ctx.drawImage(stealerImg, stealer.x - 57, stealer.y - 57, 115, 115);
+        ctx.drawImage(stealerImg, stealer.x - 57, stealer.y - 57, 115, 115);
 
-    // If reaches healer
-    if (healer && Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 60) {
-        removeHealer = true;
-        removeStealer = true;
-    }
+        // When touching healer → start escape mode
+        if (Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 60) {
+            stealer.carrying = true;
+        }
 
-    // If hits player
-    if (Math.hypot(stealer.x - player.x, stealer.y - player.y) < 70) {
-        player.health -= 0.8;
+    } else if (stealer.carrying) {
+
+        // Escape upward with healer
+        stealer.y -= 4;
+        ctx.drawImage(stealerImg, stealer.x - 57, stealer.y - 57, 115, 115);
+
+        // Remove both once off screen
+        if (stealer.y < -150) {
+            stealer = null;
+        }
+
+    } else {
+
+        // If no healer → chase player
+        let angle = Math.atan2(player.y - stealer.y, player.x - stealer.x);
+        stealer.x += Math.cos(angle) * stealer.speed;
+        stealer.y += Math.sin(angle) * stealer.speed;
+
+        ctx.drawImage(stealerImg, stealer.x - 57, stealer.y - 57, 115, 115);
+
+        if (Math.hypot(stealer.x - player.x, stealer.y - player.y) < 70) {
+            player.health -= 0.8;
+        }
     }
 }
 
-// SAFE removal after logic
-if (removeHealer) healer = null;
-if (removeStealer) stealer = null;
+/* Draw healer ONLY if not carried */
+if (healer && !(stealer && stealer.carrying)) {
+    ctx.drawImage(healerImg, healer.x - 47, healer.y - 47, 95, 95);
 
-
-    if(Math.hypot(stealer.x-player.x,stealer.y-player.y)<70){
-      player.health-=0.8;
+    if (Math.hypot(player.x - healer.x, player.y - healer.y) < 70) {
+        player.health = Math.min(100, player.health + 40);
+        healer = null;
+        stealer = null;
     }
-  }
+}
+
 
   /* ===== BOSS ===== */
   if(boss){
