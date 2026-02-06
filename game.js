@@ -12,7 +12,7 @@ window.addEventListener("resize", resize);
 const playerImg = new Image();
 playerImg.src = "gf.png";
 const enemyImg = new Image();
-enemyImg.src = "me.png";
+enemyImg.src = "you.png";
 
 // GAME STATE
 let bullets = [];
