@@ -145,51 +145,73 @@ function gameLoop(timestamp) {
     return true;
   });
 
-  /* ===== HEALER + STEALER LOGIC ===== */
-  if (stealer) {
+  /* ===== HEALER + STEALER LOGIC (FREEZE FIXED) ===== */
 
-    if (healer && !stealer.carrying) {
+if (stealer) {
 
-      let angle = Math.atan2(healer.y - stealer.y, healer.x - stealer.x);
-      stealer.x += Math.cos(angle) * stealer.speed;
-      stealer.y += Math.sin(angle) * stealer.speed;
+  // If healer exists and not carrying
+  if (healer && !stealer.carrying && !stealer.escaping) {
 
-      if (Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 50) {
-        stealer.carrying = true;
-        healer = null;
-      }
+    let angle = Math.atan2(healer.y - stealer.y, healer.x - stealer.x);
+    stealer.x += Math.cos(angle) * stealer.speed;
+    stealer.y += Math.sin(angle) * stealer.speed;
 
-    } else if (stealer.carrying) {
-
-      stealer.y -= 6;
-
-      if (stealer.y < -STEALER_SIZE) {
-        stealer = null;   // clean removal, no timer issues
-      }
-
-    } else {
-
-      let angle = Math.atan2(player.y - stealer.y, player.x - stealer.x);
-      stealer.x += Math.cos(angle) * stealer.speed;
-      stealer.y += Math.sin(angle) * stealer.speed;
-
-      if (Math.hypot(stealer.x - player.x, stealer.y - player.y) < 60) {
-        player.health -= 0.6;
-      }
-    }
-
-    ctx.drawImage(stealerImg, stealer.x - STEALER_SIZE/2, stealer.y - STEALER_SIZE/2, STEALER_SIZE, STEALER_SIZE);
-  }
-
-  if (healer) {
-    ctx.drawImage(healerImg, healer.x - HEALER_SIZE/2, healer.y - HEALER_SIZE/2, HEALER_SIZE, HEALER_SIZE);
-
-    if (Math.hypot(player.x - healer.x, player.y - healer.y) < 60) {
-      player.health = Math.min(100, player.health + 35);
+    if (Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 50) {
+      stealer.carrying = true;
+      stealer.escaping = true;
       healer = null;
-      stealer = null;
     }
   }
+
+  // If escaping with healer
+  if (stealer.escaping) {
+    stealer.y -= 6;
+  }
+
+  // If attacking player
+  if (!stealer.carrying && !stealer.escaping) {
+    let angle = Math.atan2(player.y - stealer.y, player.x - stealer.x);
+    stealer.x += Math.cos(angle) * stealer.speed;
+    stealer.y += Math.sin(angle) * stealer.speed;
+
+    if (Math.hypot(stealer.x - player.x, stealer.y - player.y) < 60) {
+      player.health -= 0.6;
+    }
+  }
+
+  // DRAW
+  ctx.drawImage(
+    stealerImg,
+    stealer.x - STEALER_SIZE / 2,
+    stealer.y - STEALER_SIZE / 2,
+    STEALER_SIZE,
+    STEALER_SIZE
+  );
+
+  // SAFE CLEANUP (end of logic)
+  if (stealer.y < -STEALER_SIZE - 50) {
+    stealer = null;
+  }
+}
+
+
+/* ===== HEALER ===== */
+if (healer) {
+  ctx.drawImage(
+    healerImg,
+    healer.x - HEALER_SIZE / 2,
+    healer.y - HEALER_SIZE / 2,
+    HEALER_SIZE,
+    HEALER_SIZE
+  );
+
+  if (Math.hypot(player.x - healer.x, player.y - healer.y) < 60) {
+    player.health = Math.min(100, player.health + 35);
+    healer = null;
+    stealer = null;
+  }
+}
+
 
   /* ===== BOSS ===== */
   if (boss) {
