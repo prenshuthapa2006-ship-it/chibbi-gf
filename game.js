@@ -196,19 +196,37 @@ function gameLoop(){
     }
   }
 
-  /* ===== STEALER FIX (NO FREEZE) ===== */
-  if(stealer){
+  /* ===== STEALER SAFE FIX ===== */
+let removeHealer = false;
+let removeStealer = false;
+
+if (stealer) {
     let target = healer ? healer : player;
-    let angle = Math.atan2(target.y-stealer.y,target.x-stealer.x);
-    stealer.x += Math.cos(angle)*stealer.speed;
-    stealer.y += Math.sin(angle)*stealer.speed;
 
-    ctx.drawImage(stealerImg,stealer.x-57,stealer.y-57,115,115);
-
-    if(healer && Math.hypot(stealer.x-healer.x,stealer.y-healer.y)<60){
-      healer = null;
-      stealer = null; // clean removal (NO state conflict)
+    if (target) {
+        let angle = Math.atan2(target.y - stealer.y, target.x - stealer.x);
+        stealer.x += Math.cos(angle) * stealer.speed;
+        stealer.y += Math.sin(angle) * stealer.speed;
     }
+
+    ctx.drawImage(stealerImg, stealer.x - 57, stealer.y - 57, 115, 115);
+
+    // If reaches healer
+    if (healer && Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 60) {
+        removeHealer = true;
+        removeStealer = true;
+    }
+
+    // If hits player
+    if (Math.hypot(stealer.x - player.x, stealer.y - player.y) < 70) {
+        player.health -= 0.8;
+    }
+}
+
+// SAFE removal after logic
+if (removeHealer) healer = null;
+if (removeStealer) stealer = null;
+
 
     if(Math.hypot(stealer.x-player.x,stealer.y-player.y)<70){
       player.health-=0.8;
