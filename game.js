@@ -197,25 +197,40 @@ function gameLoop() {
 
     // STEALER TAKES HEALER
     if (stealer && healer) {
-      const dx = healer.x - stealer.x;
-      const dy = healer.y - stealer.y;
-      const dist = Math.hypot(dx, dy);
+  const dx = healer.x - stealer.x;
+  const dy = healer.y - stealer.y;
+  const dist = Math.hypot(dx, dy);
 
-      stealer.x += (dx / dist) * stealer.speed;
-      stealer.y += (dy / dist) * stealer.speed;
+  // INTENSE SPEED
+  let speed = 3.5;
 
-      ctx.drawImage(stealerImg,
-        stealer.x - stealer.size / 2,
-        stealer.y - stealer.size / 2,
-        stealer.size,
-        stealer.size
-      );
+  // DASH BOOST when close
+  if (dist < 200) speed = 6;
 
-      if (dist < 40) {
-        healer = null;
-        stealer = null;
-      }
-    }
+  stealer.x += (dx / dist) * speed;
+  stealer.y += (dy / dist) * speed;
+
+  // DARK GLOW EFFECT
+  ctx.shadowColor = "red";
+  ctx.shadowBlur = 25;
+
+  ctx.drawImage(
+    stealerImg,
+    stealer.x - stealer.size / 2,
+    stealer.y - stealer.size / 2,
+    stealer.size,
+    stealer.size
+  );
+
+  ctx.shadowBlur = 0;
+
+  // If reaches healer → instantly steals
+  if (dist < 45) {
+    healer = null;
+    stealer = null;
+  }
+}
+
 
     if (Math.random() < 0.02) spawnEnemy();
     if (Math.random() < 0.002) spawnEnemy(true);
