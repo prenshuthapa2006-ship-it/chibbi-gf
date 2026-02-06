@@ -1,16 +1,16 @@
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-window.addEventListener("resize", () => {
+/* ========= RESIZE ========= */
+function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-});
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
-/* ===== LOAD IMAGES ===== */
-
+/* ========= LOAD IMAGES ========= */
 const gfImg = new Image();
 gfImg.src = "gf.png";
 
@@ -23,32 +23,27 @@ healerImg.src = "healer.png";
 const stealerImg = new Image();
 stealerImg.src = "stealer.png";
 
-/* ===== SIZES ===== */
+/* ========= SIZES ========= */
+const PLAYER_SIZE = 110;
+const ENEMY_SIZE = 100;
+const BOSS_SIZE = 160;
+const HEALER_SIZE = 95;
+const STEALER_SIZE = 110;
 
-const PLAYER_SIZE = 120;
-const ENEMY_SIZE = 110;
-const BOSS_SIZE = 170;
-const HEALER_SIZE = 100;
-const STEALER_SIZE = 120;
-
-/* ===== PLAYER ===== */
-
+/* ========= PLAYER ========= */
 let player = {
-  x: canvas.width / 2,
-  y: canvas.height / 2,
-  speed: 6,
+  x: window.innerWidth / 2,
+  y: window.innerHeight / 2,
   health: 100
 };
 
 let score = 0;
 
-/* ===== CONTROL (MOBILE + PC DRAG) ===== */
-
+/* ========= CONTROL (PC + MOBILE) ========= */
 let dragging = false;
 
 canvas.addEventListener("mousedown", () => dragging = true);
 canvas.addEventListener("mouseup", () => dragging = false);
-
 canvas.addEventListener("mousemove", e => {
   if (dragging) {
     player.x = e.clientX;
@@ -61,23 +56,20 @@ canvas.addEventListener("touchstart", e => {
   player.x = e.touches[0].clientX;
   player.y = e.touches[0].clientY;
 });
-
 canvas.addEventListener("touchmove", e => {
   player.x = e.touches[0].clientX;
   player.y = e.touches[0].clientY;
 });
-
 canvas.addEventListener("touchend", () => dragging = false);
 
-/* ===== ARRAYS ===== */
-
+/* ========= ARRAYS ========= */
 let enemies = [];
 let bullets = [];
 let boss = null;
 let healer = null;
 let stealer = null;
 
-/* ===== SPAWN SYSTEM ===== */
+/* ========= SPAWN ========= */
 
 function spawnEnemy() {
   let side = Math.floor(Math.random() * 4);
@@ -88,26 +80,28 @@ function spawnEnemy() {
   if (side === 2) { x = Math.random() * canvas.width; y = 0; }
   if (side === 3) { x = Math.random() * canvas.width; y = canvas.height; }
 
-  enemies.push({ x, y, speed: 2 + score * 0.002 });
+  enemies.push({
+    x,
+    y,
+    speed: 2 + score * 0.002
+  });
 }
 
-setInterval(spawnEnemy, 1500);
+setInterval(spawnEnemy, 1300);
 
-/* ===== BOSS SPAWN ===== */
-
+/* ========= BOSS ========= */
 setInterval(() => {
-  if (!boss && score > 20) {
+  if (!boss && score > 15) {
     boss = {
       x: Math.random() * canvas.width,
       y: -200,
-      health: 60 + score * 0.3,
-      speed: 1.5
+      health: 60 + score * 0.5,
+      speed: 1.6
     };
   }
-}, 8000);
+}, 9000);
 
-/* ===== HEALER SPAWN ===== */
-
+/* ========= HEALER ========= */
 setInterval(() => {
   if (!healer) {
     healer = {
@@ -117,23 +111,21 @@ setInterval(() => {
   }
 }, 10000);
 
-/* ===== STEALER SPAWN ===== */
-
+/* ========= STEALER ========= */
 setInterval(() => {
   if (!stealer && healer) {
     stealer = {
       x: Math.random() * canvas.width,
-      y: canvas.height + 150,
+      y: canvas.height + 120,
       speed: 3,
       carrying: false
     };
   }
 }, 6000);
 
-/* ===== AUTO SHOOT HEARTS ===== */
-
+/* ========= AUTO SHOOT ========= */
 setInterval(() => {
-  if (!enemies.length) return;
+  if (enemies.length === 0) return;
 
   let nearest = enemies.reduce((a, b) =>
     Math.hypot(player.x - a.x, player.y - a.y) <
@@ -148,16 +140,14 @@ setInterval(() => {
     dx: Math.cos(angle) * 8,
     dy: Math.sin(angle) * 8
   });
-
 }, 500);
 
-/* ===== GAME LOOP ===== */
-
+/* ========= GAME LOOP ========= */
 function gameLoop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  /* ---- DRAW PLAYER ---- */
+  /* PLAYER */
   ctx.drawImage(
     gfImg,
     player.x - PLAYER_SIZE / 2,
@@ -166,9 +156,9 @@ function gameLoop() {
     PLAYER_SIZE
   );
 
-  /* ---- BULLETS ---- */
-  bullets.forEach((b, i) => {
-
+  /* BULLETS */
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    let b = bullets[i];
     b.x += b.dx;
     b.y += b.dy;
 
@@ -177,7 +167,7 @@ function gameLoop() {
     ctx.fillStyle = "pink";
 
     ctx.beginPath();
-    ctx.arc(b.x, b.y, 10, 0, Math.PI * 2);
+    ctx.arc(b.x, b.y, 9, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.shadowBlur = 0;
@@ -188,10 +178,11 @@ function gameLoop() {
     ) {
       bullets.splice(i, 1);
     }
-  });
+  }
 
-  /* ---- ENEMIES ---- */
-  enemies.forEach((e, i) => {
+  /* ENEMIES */
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    let e = enemies[i];
 
     let angle = Math.atan2(player.y - e.y, player.x - e.x);
     e.x += Math.cos(angle) * e.speed;
@@ -209,18 +200,18 @@ function gameLoop() {
       player.health -= 0.2;
     }
 
-    bullets.forEach((b, bi) => {
-      if (Math.hypot(b.x - e.x, b.y - e.y) < 50) {
+    for (let j = bullets.length - 1; j >= 0; j--) {
+      if (Math.hypot(bullets[j].x - e.x, bullets[j].y - e.y) < 45) {
         enemies.splice(i, 1);
-        bullets.splice(bi, 1);
+        bullets.splice(j, 1);
         score++;
+        break;
       }
-    });
-  });
+    }
+  }
 
-  /* ---- BOSS ---- */
+  /* BOSS */
   if (boss) {
-
     let angle = Math.atan2(player.y - boss.y, player.x - boss.x);
     boss.x += Math.cos(angle) * boss.speed;
     boss.y += Math.sin(angle) * boss.speed;
@@ -233,20 +224,20 @@ function gameLoop() {
       BOSS_SIZE
     );
 
-    bullets.forEach((b, bi) => {
-      if (Math.hypot(b.x - boss.x, b.y - boss.y) < 60) {
+    for (let j = bullets.length - 1; j >= 0; j--) {
+      if (Math.hypot(bullets[j].x - boss.x, bullets[j].y - boss.y) < 60) {
         boss.health -= 5;
-        bullets.splice(bi, 1);
+        bullets.splice(j, 1);
       }
-    });
+    }
 
     if (boss.health <= 0) {
       boss = null;
-      score += 10;
+      score += 8;
     }
   }
 
-  /* ---- HEALER ---- */
+  /* HEALER */
   if (healer) {
     ctx.drawImage(
       healerImg,
@@ -256,4 +247,65 @@ function gameLoop() {
       HEALER_SIZE
     );
 
-    if (Math.hypot(player.x - he
+    if (Math.hypot(player.x - healer.x, player.y - healer.y) < 60) {
+      player.health = Math.min(100, player.health + 35);
+      healer = null;
+      stealer = null;
+    }
+  }
+
+  /* STEALER */
+  if (stealer) {
+
+    if (healer && !stealer.carrying) {
+      let angle = Math.atan2(healer.y - stealer.y, healer.x - stealer.x);
+      stealer.x += Math.cos(angle) * stealer.speed;
+      stealer.y += Math.sin(angle) * stealer.speed;
+
+      if (Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 50) {
+        stealer.carrying = true;
+        healer = null;
+      }
+
+    } else if (stealer.carrying) {
+      stealer.y -= 5;
+      if (stealer.y < -200) {
+        stealer = null;
+      }
+
+    } else {
+      let angle = Math.atan2(player.y - stealer.y, player.x - stealer.x);
+      stealer.x += Math.cos(angle) * stealer.speed;
+      stealer.y += Math.sin(angle) * stealer.speed;
+
+      if (Math.hypot(player.x - stealer.x, player.y - stealer.y) < 60) {
+        player.health -= 0.3;
+      }
+    }
+
+    if (stealer) {
+      ctx.drawImage(
+        stealerImg,
+        stealer.x - STEALER_SIZE / 2,
+        stealer.y - STEALER_SIZE / 2,
+        STEALER_SIZE,
+        STEALER_SIZE
+      );
+    }
+  }
+
+  /* UI */
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Score: " + score, 20, 40);
+  ctx.fillText("Health: " + Math.floor(player.health), 20, 70);
+
+  if (player.health <= 0) {
+    alert("Game Over 💔 Score: " + score);
+    document.location.reload();
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
