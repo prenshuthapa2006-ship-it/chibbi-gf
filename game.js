@@ -1,24 +1,23 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-window.addEventListener("resize", () => {
+function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-});
+}
+resize();
+window.addEventListener("resize", resize);
 
 // IMAGES
 const playerImg = new Image();
 playerImg.src = "gf.png";
-
 const enemyImg = new Image();
-enemyImg.src = "you.png";
+enemyImg.src = "me.png";
 
 // GAME STATE
 let bullets = [];
 let enemies = [];
+let score = 0;
 let gameOver = false;
 
 // PLAYER
@@ -27,10 +26,6 @@ const player = {
   y: canvas.height / 2,
   size: 140
 };
-
-// AIM POSITION
-let aimX = player.x;
-let aimY = player.y;
 
 // 💖 HEART BULLET
 function drawHeart(x, y, s) {
@@ -42,69 +37,53 @@ function drawHeart(x, y, s) {
   ctx.fill();
 }
 
-// 👿 SPAWN ENEMY (NORMAL / BOSS)
-function spawnEnemy(isBoss = false) {
-  const side = Math.floor(Math.random() * 4);
-  let x, y;
+// 🔫 AUTO SHOOT (toward nearest enemy)
+setInterval(() => {
+  if (gameOver || enemies.length === 0) return;
 
-  if (side === 0) { x = Math.random() * canvas.width; y = -120; }
-  else if (side === 1) { x = Math.random() * canvas.width; y = canvas.height + 120; }
-  else if (side === 2) { x = -120; y = Math.random() * canvas.height; }
-  else { x = canvas.width + 120; y = Math.random() * canvas.height; }
-
-  enemies.push({
-    x,
-    y,
-    size: isBoss ? 200 : 110,
-    speed: isBoss ? 0.8 : 1.6,
-    boss: isBoss
-  });
-}
-
-// 🖱️ DESKTOP MOVE + AIM
-window.addEventListener("mousemove", e => {
-  player.x = e.clientX;
-  player.y = e.clientY;
-  aimX = e.clientX;
-  aimY = e.clientY;
-});
-
-// 📱 MOBILE MOVE (DRAG)
-canvas.addEventListener("touchmove", e => {
-  const t = e.touches[0];
-  player.x = t.clientX;
-  player.y = t.clientY;
-});
-
-// 🔫 SHOOT ANY DIRECTION
-function shoot(x, y) {
-  if (gameOver) {
-    bullets = [];
-    enemies = [];
-    gameOver = false;
-    return;
-  }
-
-  const angle = Math.atan2(y - player.y, x - player.x);
+  const target = enemies[0];
+  const angle = Math.atan2(target.y - player.y, target.x - player.x);
 
   bullets.push({
     x: player.x,
     y: player.y,
-    vx: Math.cos(angle) * 10,
-    vy: Math.sin(angle) * 10,
+    vx: Math.cos(angle) * 9,
+    vy: Math.sin(angle) * 9,
     size: 12
+  });
+}, 250);
+
+// 👿 SPAWN ENEMY / BOSS
+function spawnEnemy(isBoss = false) {
+  const side = Math.floor(Math.random() * 4);
+  let x, y;
+
+  if (side === 0) { x = Math.random() * canvas.width; y = -150; }
+  else if (side === 1) { x = Math.random() * canvas.width; y = canvas.height + 150; }
+  else if (side === 2) { x = -150; y = Math.random() * canvas.height; }
+  else { x = canvas.width + 150; y = Math.random() * canvas.height; }
+
+  enemies.push({
+    x,
+    y,
+    size: isBoss ? 220 : 110,
+    speed: isBoss ? 0.7 : 1.6,
+    hp: isBoss ? 5 : 1,
+    boss: isBoss
   });
 }
 
-// 🖱️ DESKTOP SHOOT
-canvas.addEventListener("click", e => {
-  shoot(e.clientX, e.clientY);
+// 🖱️ PC MOVE
+window.addEventListener("mousemove", e => {
+  player.x = e.clientX;
+  player.y = e.clientY;
 });
 
-// 📱 MOBILE SHOOT (TAP)
-canvas.addEventListener("touchstart", e => {
+// 📱 MOBILE MOVE
+canvas.addEventListener("touchmove", e => {
   const t = e.touches[0];
-  shoot(t.clientX, t.clientY);
+  player.x = t.clientX;
+  player.y = t.clientY;
 });
 
 // 🔄 GAME LOOP
@@ -131,12 +110,12 @@ function gameLoop() {
       drawHeart(b.x, b.y, b.size);
 
       if (
-        b.x < -50 || b.x > canvas.width + 50 ||
-        b.y < -50 || b.y > canvas.height + 50
+        b.x < -60 || b.x > canvas.width + 60 ||
+        b.y < -60 || b.y > canvas.height + 60
       ) bullets.splice(bi, 1);
     });
 
-    // ENEMIES (CHASE PLAYER)
+    // ENEMIES
     enemies.forEach((e, ei) => {
       const dx = player.x - e.x;
       const dy = player.y - e.y;
@@ -156,24 +135,35 @@ function gameLoop() {
       );
       ctx.shadowBlur = 0;
 
-      // PLAYER HIT
+      // COLLISION WITH PLAYER
       if (dist < e.size / 2 + player.size / 2) {
         gameOver = true;
       }
 
-      // BULLET HIT
+      // HIT BY BULLET
       bullets.forEach((b, bi) => {
         if (Math.hypot(e.x - b.x, e.y - b.y) < e.size / 2) {
-          enemies.splice(ei, 1);
+          e.hp--;
           bullets.splice(bi, 1);
+
+          if (e.hp <= 0) {
+            score += e.boss ? 10 : 1;
+            enemies.splice(ei, 1);
+          }
         }
       });
     });
 
-    // SPAWNS
+    // SPAWN RATE
     if (Math.random() < 0.02) spawnEnemy(false);
-    if (Math.random() < 0.002) spawnEnemy(true); // 👑 BOSS
+    if (Math.random() < 0.002) spawnEnemy(true);
   }
+
+  // 🧮 SCORE BAR
+  ctx.fillStyle = "white";
+  ctx.font = "22px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(`Score: ${score}`, 20, 35);
 
   // GAME OVER
   if (gameOver) {
@@ -181,7 +171,7 @@ function gameLoop() {
     ctx.font = "42px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(
-      "GAME OVER 💔 Tap / Click to Restart",
+      "GAME OVER 💔 Tap to Restart",
       canvas.width / 2,
       canvas.height / 2
     );
@@ -189,5 +179,24 @@ function gameLoop() {
 
   requestAnimationFrame(gameLoop);
 }
+
+// RESTART
+canvas.addEventListener("touchstart", () => {
+  if (gameOver) {
+    bullets = [];
+    enemies = [];
+    score = 0;
+    gameOver = false;
+  }
+});
+
+canvas.addEventListener("click", () => {
+  if (gameOver) {
+    bullets = [];
+    enemies = [];
+    score = 0;
+    gameOver = false;
+  }
+});
 
 gameLoop();
