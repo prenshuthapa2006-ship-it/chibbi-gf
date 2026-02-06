@@ -22,7 +22,7 @@ const gfImg = new Image();
 gfImg.src = "gf.png";
 
 const enemyImg = new Image();
-enemyImg.src = "me.png";
+enemyImg.src = "you.png";
 
 const stealerImg = new Image();
 stealerImg.src = "stealer.png";
