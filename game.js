@@ -1,15 +1,9 @@
-
-
-
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const music = document.getElementById("bgMusic");
+const musicBtn = document.getElementById("musicBtn");
 
-// ================= MOBILE SAFE SETTINGS =================
-document.body.style.margin = 0;
-document.body.style.overflow = "hidden";
-canvas.style.touchAction = "none";
-
-// ================= CANVAS RESIZE =================
+// ===== CANVAS =====
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -17,7 +11,22 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-// ================= IMAGES =================
+canvas.style.touchAction = "none";
+
+// ===== MUSIC BUTTON =====
+let musicPlaying = false;
+musicBtn.onclick = () => {
+  if (!musicPlaying) {
+    music.play();
+    musicBtn.innerText = "🔈 Mute";
+  } else {
+    music.pause();
+    musicBtn.innerText = "🔊 Music";
+  }
+  musicPlaying = !musicPlaying;
+};
+
+// ===== IMAGES =====
 const gfImg = new Image();
 gfImg.src = "gf.png";
 
@@ -30,31 +39,23 @@ stealerImg.src = "stealer.png";
 const healerImg = new Image();
 healerImg.src = "healer.png";
 
-// ================= PLAYER =================
+// ===== PLAYER =====
 let player = {
   x: canvas.width / 2,
   y: canvas.height / 2,
-  size: 95,
+  size: 90,
   health: 100
 };
 
 let targetX = player.x;
 let targetY = player.y;
 
-// Detect mobile
 const isMobile = window.innerWidth < 768;
 
-// Smooth Control (PC)
+// Controls
 window.addEventListener("mousemove", e => {
   targetX = e.clientX;
   targetY = e.clientY;
-});
-
-// Smooth Control (Mobile)
-canvas.addEventListener("touchstart", e => {
-  const t = e.touches[0];
-  targetX = t.clientX;
-  targetY = t.clientY;
 });
 
 canvas.addEventListener("touchmove", e => {
@@ -63,7 +64,7 @@ canvas.addEventListener("touchmove", e => {
   targetY = t.clientY;
 });
 
-// ================= GAME DATA =================
+// ===== GAME DATA =====
 let enemies = [];
 let bullets = [];
 let healer = null;
@@ -71,7 +72,7 @@ let stealer = null;
 let score = 0;
 let gameOver = false;
 
-// ================= SPAWN ENEMY =================
+// ===== SPAWN ENEMY =====
 function spawnEnemy() {
   let side = Math.floor(Math.random() * 4);
   let x, y;
@@ -84,28 +85,28 @@ function spawnEnemy() {
   enemies.push({
     x,
     y,
-    size: 75,
+    size: 70,
     speed: isMobile ? 4 : 4.5
   });
 }
 
-// ================= SPAWN HEALER =================
+// ===== SPAWN HEALER =====
 function spawnHealer() {
   healer = {
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
-    size: 85
+    size: 80
   };
 
   stealer = {
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
-    size: 85,
+    size: 80,
     speed: isMobile ? 3 : 3.5
   };
 }
 
-// ================= AUTO SHOOT =================
+// ===== AUTO SHOOT =====
 setInterval(() => {
   if (gameOver) return;
 
@@ -133,7 +134,7 @@ setInterval(() => {
   }
 }, 250);
 
-// ================= GAME LOOP =================
+// ===== GAME LOOP =====
 function gameLoop() {
   if (gameOver) return;
 
@@ -144,43 +145,25 @@ function gameLoop() {
   player.x += (targetX - player.x) * smooth;
   player.y += (targetY - player.y) * smooth;
 
-  // Keep inside screen
   player.x = Math.max(player.size/2, Math.min(canvas.width - player.size/2, player.x));
   player.y = Math.max(player.size/2, Math.min(canvas.height - player.size/2, player.y));
 
-  // Draw Player
-  ctx.drawImage(
-    gfImg,
-    player.x - player.size/2,
-    player.y - player.size/2,
-    player.size,
-    player.size
-  );
+  ctx.drawImage(gfImg, player.x - 45, player.y - 45, 90, 90);
 
-  // Spawn enemies (optimized for mobile)
-  let spawnRate = isMobile ? 0.012 : 0.02;
-  if (Math.random() < spawnRate) spawnEnemy();
+  if (Math.random() < (isMobile ? 0.012 : 0.02)) spawnEnemy();
 
-  // ===== ENEMIES =====
   enemies.forEach((e, i) => {
     let angle = Math.atan2(player.y - e.y, player.x - e.x);
     e.x += Math.cos(angle) * e.speed;
     e.y += Math.sin(angle) * e.speed;
 
-    ctx.drawImage(
-      enemyImg,
-      e.x - e.size/2,
-      e.y - e.size/2,
-      e.size,
-      e.size
-    );
+    ctx.drawImage(enemyImg, e.x - 35, e.y - 35, 70, 70);
 
-    if (Math.hypot(e.x - player.x, e.y - player.y) < e.size/2) {
+    if (Math.hypot(e.x - player.x, e.y - player.y) < 35) {
       player.health -= 0.5;
     }
   });
 
-  // ===== BULLETS =====
   bullets.forEach((b, bi) => {
     b.x += b.dx;
     b.y += b.dy;
@@ -191,7 +174,7 @@ function gameLoop() {
     ctx.fill();
 
     enemies.forEach((e, ei) => {
-      if (Math.hypot(e.x - b.x, e.y - b.y) < e.size/2) {
+      if (Math.hypot(e.x - b.x, e.y - b.y) < 35) {
         enemies.splice(ei, 1);
         bullets.splice(bi, 1);
         score++;
@@ -199,19 +182,12 @@ function gameLoop() {
     });
   });
 
-  // ===== HEALER + STEALER =====
   if (!healer && Math.random() < 0.0012) spawnHealer();
 
   if (healer) {
-    ctx.drawImage(
-      healerImg,
-      healer.x - healer.size/2,
-      healer.y - healer.size/2,
-      healer.size,
-      healer.size
-    );
+    ctx.drawImage(healerImg, healer.x - 40, healer.y - 40, 80, 80);
 
-    if (Math.hypot(healer.x - player.x, healer.y - player.y) < healer.size/2) {
+    if (Math.hypot(healer.x - player.x, healer.y - player.y) < 40) {
       player.health = Math.min(100, player.health + 35);
       healer = null;
       stealer = null;
@@ -223,21 +199,15 @@ function gameLoop() {
     stealer.x += Math.cos(angle) * stealer.speed;
     stealer.y += Math.sin(angle) * stealer.speed;
 
-    ctx.drawImage(
-      stealerImg,
-      stealer.x - stealer.size/2,
-      stealer.y - stealer.size/2,
-      stealer.size,
-      stealer.size
-    );
+    ctx.drawImage(stealerImg, stealer.x - 40, stealer.y - 40, 80, 80);
 
-    if (Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < stealer.size/2) {
+    if (Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 40) {
       healer = null;
       stealer = null;
     }
   }
 
-  // ===== UI =====
+  // UI
   ctx.fillStyle = "white";
   ctx.font = "20px Arial";
   ctx.fillText("Score: " + score, 20, 30);
@@ -248,7 +218,6 @@ function gameLoop() {
   ctx.fillStyle = "lime";
   ctx.fillRect(20, 50, player.health * 2, 15);
 
-  // ===== GAME OVER =====
   if (player.health <= 0) {
     gameOver = true;
     ctx.fillStyle = "white";
