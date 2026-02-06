@@ -1,4 +1,3 @@
-
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -10,7 +9,7 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-/* ========= LOAD IMAGES ========= */
+/* ========= IMAGES ========= */
 const gfImg = new Image();
 gfImg.src = "gf.png";
 
@@ -23,11 +22,33 @@ healerImg.src = "healer.png";
 const stealerImg = new Image();
 stealerImg.src = "stealer.png";
 
+/* ========= MUSIC ========= */
+const musicBtn = document.getElementById("musicBtn");
+const bgm = new Audio("bgm.mp3");
+bgm.loop = true;
+bgm.volume = 0.5;
+
+let musicOn = false;
+
+if (musicBtn) {
+  musicBtn.addEventListener("click", () => {
+    if (!musicOn) {
+      bgm.play();
+      musicBtn.innerText = "🔊";
+      musicOn = true;
+    } else {
+      bgm.pause();
+      musicBtn.innerText = "🎵";
+      musicOn = false;
+    }
+  });
+}
+
 /* ========= SIZES ========= */
 const PLAYER_SIZE = 110;
-const ENEMY_SIZE = 100;
+const ENEMY_SIZE = 95;
 const BOSS_SIZE = 160;
-const HEALER_SIZE = 95;
+const HEALER_SIZE = 90;
 const STEALER_SIZE = 110;
 
 /* ========= PLAYER ========= */
@@ -39,7 +60,7 @@ let player = {
 
 let score = 0;
 
-/* ========= CONTROL (PC + MOBILE) ========= */
+/* ========= CONTROL (DRAG PC + MOBILE) ========= */
 let dragging = false;
 
 canvas.addEventListener("mousedown", () => dragging = true);
@@ -69,8 +90,7 @@ let boss = null;
 let healer = null;
 let stealer = null;
 
-/* ========= SPAWN ========= */
-
+/* ========= ENEMY SPAWN ========= */
 function spawnEnemy() {
   let side = Math.floor(Math.random() * 4);
   let x, y;
@@ -83,11 +103,11 @@ function spawnEnemy() {
   enemies.push({
     x,
     y,
-    speed: 2 + score * 0.002
+    speed: 2 + score * 0.005
   });
 }
 
-setInterval(spawnEnemy, 1300);
+setInterval(spawnEnemy, 1100);
 
 /* ========= BOSS ========= */
 setInterval(() => {
@@ -95,8 +115,8 @@ setInterval(() => {
     boss = {
       x: Math.random() * canvas.width,
       y: -200,
-      health: 60 + score * 0.5,
-      speed: 1.6
+      health: 70 + score * 0.5,
+      speed: 1.8
     };
   }
 }, 9000);
@@ -125,22 +145,25 @@ setInterval(() => {
 
 /* ========= AUTO SHOOT ========= */
 setInterval(() => {
-  if (enemies.length === 0) return;
 
-  let nearest = enemies.reduce((a, b) =>
-    Math.hypot(player.x - a.x, player.y - a.y) <
-    Math.hypot(player.x - b.x, player.y - b.y) ? a : b
-  );
+  if (enemies.length === 0 && !boss) return;
 
-  let angle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+  let target = boss ? boss :
+    enemies.reduce((a, b) =>
+      Math.hypot(player.x - a.x, player.y - a.y) <
+      Math.hypot(player.x - b.x, player.y - b.y) ? a : b
+    );
+
+  let angle = Math.atan2(target.y - player.y, target.x - player.x);
 
   bullets.push({
     x: player.x,
     y: player.y,
-    dx: Math.cos(angle) * 8,
-    dy: Math.sin(angle) * 8
+    dx: Math.cos(angle) * 9,
+    dy: Math.sin(angle) * 9
   });
-}, 500);
+
+}, 350);
 
 /* ========= GAME LOOP ========= */
 function gameLoop() {
@@ -156,21 +179,23 @@ function gameLoop() {
     PLAYER_SIZE
   );
 
-  /* BULLETS */
+  /* BULLETS (GLOWING HEARTS) */
   for (let i = bullets.length - 1; i >= 0; i--) {
     let b = bullets[i];
     b.x += b.dx;
     b.y += b.dy;
 
-    ctx.shadowColor = "pink";
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = "pink";
+    ctx.save();
+    ctx.shadowColor = "#ff69b4";
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = "#ff69b4";
 
     ctx.beginPath();
-    ctx.arc(b.x, b.y, 9, 0, Math.PI * 2);
+    ctx.moveTo(b.x, b.y);
+    ctx.bezierCurveTo(b.x - 10, b.y - 10, b.x - 20, b.y + 10, b.x, b.y + 20);
+    ctx.bezierCurveTo(b.x + 20, b.y + 10, b.x + 10, b.y - 10, b.x, b.y);
     ctx.fill();
-
-    ctx.shadowBlur = 0;
+    ctx.restore();
 
     if (
       b.x < -50 || b.x > canvas.width + 50 ||
@@ -197,7 +222,7 @@ function gameLoop() {
     );
 
     if (Math.hypot(player.x - e.x, player.y - e.y) < 60) {
-      player.health -= 0.2;
+      player.health -= 0.25;
     }
 
     for (let j = bullets.length - 1; j >= 0; j--) {
@@ -224,16 +249,20 @@ function gameLoop() {
       BOSS_SIZE
     );
 
+    if (Math.hypot(player.x - boss.x, player.y - boss.y) < 80) {
+      player.health -= 0.6;
+    }
+
     for (let j = bullets.length - 1; j >= 0; j--) {
       if (Math.hypot(bullets[j].x - boss.x, bullets[j].y - boss.y) < 60) {
-        boss.health -= 5;
+        boss.health -= 6;
         bullets.splice(j, 1);
       }
     }
 
     if (boss.health <= 0) {
       boss = null;
-      score += 8;
+      score += 10;
     }
   }
 
@@ -248,7 +277,7 @@ function gameLoop() {
     );
 
     if (Math.hypot(player.x - healer.x, player.y - healer.y) < 60) {
-      player.health = Math.min(100, player.health + 35);
+      player.health = Math.min(100, player.health + 40);
       healer = null;
       stealer = null;
     }
@@ -269,9 +298,7 @@ function gameLoop() {
 
     } else if (stealer.carrying) {
       stealer.y -= 5;
-      if (stealer.y < -200) {
-        stealer = null;
-      }
+      if (stealer.y < -200) stealer = null;
 
     } else {
       let angle = Math.atan2(player.y - stealer.y, player.x - stealer.x);
@@ -279,7 +306,7 @@ function gameLoop() {
       stealer.y += Math.sin(angle) * stealer.speed;
 
       if (Math.hypot(player.x - stealer.x, player.y - stealer.y) < 60) {
-        player.health -= 0.3;
+        player.health -= 0.35;
       }
     }
 
