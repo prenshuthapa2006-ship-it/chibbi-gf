@@ -60,10 +60,11 @@ let enemies = [];
 let bullets = [];
 let healer = null;
 let stealer = null;
+let boss = null;
 let score = 0;
 let gameOver = false;
 
-// ===== NORMAL ENEMIES =====
+// ===== ENEMY SPAWN =====
 function spawnEnemy() {
   let side = Math.floor(Math.random() * 4);
   let x, y;
@@ -77,15 +78,15 @@ function spawnEnemy() {
     x,
     y,
     size: 90,
-    speed: 1.4
+    speed: 1.6 + score * 0.01
   });
 }
 
 setInterval(() => {
   if (!gameOver) spawnEnemy();
-}, 2200);
+}, 1800);
 
-// ===== HEALER SPAWN =====
+// ===== HEALER =====
 setInterval(() => {
   if (!gameOver && !healer) {
     healer = {
@@ -94,19 +95,35 @@ setInterval(() => {
       size: 90
     };
 
-    // Spawn stealer after 2 seconds
     setTimeout(() => {
-      if (healer) {
+      if (healer && !stealer) {
         stealer = {
           x: Math.random() < 0.5 ? 0 : canvas.width,
           y: Math.random() * canvas.height,
           size: 110,
-          speed: 3.5  // FAST
+          speed: 3.2 + score * 0.005
         };
       }
     }, 2000);
   }
 }, 12000);
+
+// ===== BOSS SPAWN =====
+function spawnBoss() {
+  boss = {
+    x: Math.random() * canvas.width,
+    y: -150,
+    size: 170,
+    health: 25,
+    speed: 1.4 + score * 0.005
+  };
+}
+
+setInterval(() => {
+  if (!gameOver && score > 15 && !boss) {
+    spawnBoss();
+  }
+}, 5000);
 
 // ===== AUTO SHOOT =====
 setInterval(() => {
@@ -123,6 +140,8 @@ setInterval(() => {
       closest = e;
     }
   });
+
+  if (boss) closest = boss;
 
   if (closest) {
     let angle = Math.atan2(closest.y - player.y, closest.x - player.x);
@@ -151,7 +170,7 @@ function gameLoop() {
   ctx.drawImage(gfImg, player.x - 65, player.y - 65, 130, 130);
 
   // ===== ENEMIES =====
-  enemies.forEach((e, i) => {
+  enemies.forEach(e => {
     let angle = Math.atan2(player.y - e.y, player.x - e.x);
     e.x += Math.cos(angle) * e.speed;
     e.y += Math.sin(angle) * e.speed;
@@ -159,7 +178,7 @@ function gameLoop() {
     ctx.drawImage(enemyImg, e.x - 45, e.y - 45, 90, 90);
 
     if (Math.hypot(e.x - player.x, e.y - player.y) < 55) {
-      player.health -= 0.2;
+      player.health -= 0.3;
     }
   });
 
@@ -168,13 +187,13 @@ function gameLoop() {
     ctx.drawImage(healerImg, healer.x - 45, healer.y - 45, 90, 90);
 
     if (Math.hypot(player.x - healer.x, player.y - healer.y) < 70) {
-      player.health = Math.min(100, player.health + 40);
+      player.health = Math.min(100, player.health + 35);
       healer = null;
       stealer = null;
     }
   }
 
-  // ===== STEALER (CANNOT BE KILLED) =====
+  // ===== STEALER (no freeze fix) =====
   if (stealer) {
     let target = healer ? healer : player;
     let angle = Math.atan2(target.y - stealer.y, target.x - stealer.x);
@@ -183,15 +202,31 @@ function gameLoop() {
 
     ctx.drawImage(stealerImg, stealer.x - 55, stealer.y - 55, 110, 110);
 
-    // If reaches healer
     if (healer && Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 60) {
       healer = null;
-      stealer = null;
+      stealer = null; // clean removal, no break
     }
 
-    // If touches player = BIG DAMAGE
     if (Math.hypot(stealer.x - player.x, stealer.y - player.y) < 70) {
       player.health -= 1;
+    }
+  }
+
+  // ===== BOSS =====
+  if (boss) {
+    let angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+    boss.x += Math.cos(angle) * boss.speed;
+    boss.y += Math.sin(angle) * boss.speed;
+
+    ctx.drawImage(enemyImg, boss.x - 85, boss.y - 85, 170, 170);
+
+    if (Math.hypot(boss.x - player.x, boss.y - player.y) < 80) {
+      player.health -= 0.8;
+    }
+
+    if (boss.health <= 0) {
+      boss = null;
+      score += 10;
     }
   }
 
@@ -215,6 +250,11 @@ function gameLoop() {
         score++;
       }
     });
+
+    if (boss && Math.hypot(boss.x - b.x, boss.y - b.y) < 80) {
+      boss.health--;
+      bullets.splice(bi, 1);
+    }
   });
 
   // ===== UI =====
