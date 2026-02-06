@@ -3,6 +3,7 @@ const ctx = canvas.getContext("2d");
 const music = document.getElementById("bgMusic");
 const musicBtn = document.getElementById("musicBtn");
 
+/* ===== CANVAS ===== */
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -34,8 +35,8 @@ const stealerImg = new Image(); stealerImg.src = "stealer.png";
 
 /* ===== PLAYER ===== */
 let player = {
-  x: canvas.width/2,
-  y: canvas.height/2,
+  x: window.innerWidth/2,
+  y: window.innerHeight/2,
   size: 130,
   health: 100
 };
@@ -47,6 +48,7 @@ window.addEventListener("mousemove", e => {
   targetX = e.clientX;
   targetY = e.clientY;
 });
+
 canvas.addEventListener("touchmove", e => {
   const t = e.touches[0];
   targetX = t.clientX;
@@ -62,7 +64,7 @@ let boss = null;
 let score = 0;
 let gameOver = false;
 
-/* ===== ENEMY SPAWN (FASTER + BALANCED) ===== */
+/* ===== ENEMY SPAWN ===== */
 setInterval(() => {
   if (gameOver) return;
 
@@ -81,13 +83,13 @@ setInterval(() => {
     speed: 1.8 + score*0.005
   });
 
-}, 1200); // faster spawn
+}, 1100);
 
-/* ===== HEALER + STEALER ===== */
+/* ===== HEALER + STEALER SPAWN ===== */
 setInterval(() => {
   if (gameOver) return;
 
-  if (!healer) {
+  if (!healer && !stealer) {
     healer = {
       x: Math.random()*canvas.width,
       y: Math.random()*canvas.height,
@@ -100,7 +102,8 @@ setInterval(() => {
           x: Math.random()<0.5 ? 0 : canvas.width,
           y: Math.random()*canvas.height,
           size: 115,
-          speed: 3.5
+          speed: 3.5,
+          carrying: false
         };
       }
     }, 1500);
@@ -112,7 +115,7 @@ setInterval(() => {
 setInterval(() => {
   if (gameOver) return;
 
-  if (score >= 8 && !boss) {
+  if (score >= 10 && !boss) {
     boss = {
       x: Math.random()*canvas.width,
       y: -150,
@@ -128,14 +131,14 @@ setInterval(() => {
 setInterval(() => {
   if (gameOver) return;
 
-  if (bullets.length > 18) bullets.shift();
+  if (bullets.length > 20) bullets.shift();
 
   let target = null;
   let minDist = Infinity;
 
-  enemies.forEach(e => {
+  enemies.forEach(e=>{
     let d = Math.hypot(e.x-player.x, e.y-player.y);
-    if (d < minDist) {
+    if(d < minDist){
       minDist = d;
       target = e;
     }
@@ -161,7 +164,7 @@ function gameLoop(){
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // smooth move
+  /* Player smooth move */
   player.x += (targetX-player.x)*0.2;
   player.y += (targetY-player.y)*0.2;
 
@@ -170,8 +173,8 @@ function gameLoop(){
 
   ctx.drawImage(gfImg, player.x-65, player.y-65,130,130);
 
-  /* ===== ENEMIES ===== */
-  enemies = enemies.filter(e=>{
+  /* ENEMIES */
+  enemies.forEach(e=>{
     let angle = Math.atan2(player.y-e.y, player.x-e.x);
     e.x += Math.cos(angle)*e.speed;
     e.y += Math.sin(angle)*e.speed;
@@ -179,79 +182,55 @@ function gameLoop(){
     ctx.drawImage(enemyImg,e.x-47,e.y-47,95,95);
 
     if(Math.hypot(e.x-player.x,e.y-player.y)<55){
-      player.health-=0.4;
+      player.health -= 0.4;
     }
-
-    return true;
   });
 
-  /* ===== HEALER ===== */
+  /* HEALER DRAW */
   if(healer){
     ctx.drawImage(healerImg, healer.x-47, healer.y-47,95,95);
 
     if(Math.hypot(player.x-healer.x,player.y-healer.y)<70){
-      player.health=Math.min(100,player.health+40);
-      healer=null;
-      stealer=null;
+      player.health = Math.min(100, player.health+40);
+      healer = null;
+      stealer = null;
     }
   }
-/* ===== STEALER CINEMATIC VERSION ===== */
 
-if (stealer) {
+  /* STEALER LOGIC */
+  if(stealer){
 
-    // If healer exists → chase healer
-    if (healer) {
+    if(!stealer.carrying && healer){
+      let angle = Math.atan2(healer.y-stealer.y, healer.x-stealer.x);
+      stealer.x += Math.cos(angle)*stealer.speed;
+      stealer.y += Math.sin(angle)*stealer.speed;
 
-        let angle = Math.atan2(healer.y - stealer.y, healer.x - stealer.x);
-        stealer.x += Math.cos(angle) * stealer.speed;
-        stealer.y += Math.sin(angle) * stealer.speed;
+      if(Math.hypot(stealer.x-healer.x, stealer.y-healer.y)<60){
+        stealer.carrying = true;
+        healer = null;   // REMOVE immediately
+      }
 
-        ctx.drawImage(stealerImg, stealer.x - 57, stealer.y - 57, 115, 115);
+    } else if(stealer.carrying){
+      stealer.y -= 5;   // fly up
 
-        // When touching healer → start escape mode
-        if (Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 60) {
-            stealer.carrying = true;
-        }
-
-    } else if (stealer.carrying) {
-
-        // Escape upward with healer
-        stealer.y -= 4;
-        ctx.drawImage(stealerImg, stealer.x - 57, stealer.y - 57, 115, 115);
-
-        // Remove both once off screen
-        if (stealer.y < -150) {
-            stealer = null;
-        }
+      if(stealer.y < -200){
+        stealer = null;
+      }
 
     } else {
+      let angle = Math.atan2(player.y-stealer.y, player.x-stealer.x);
+      stealer.x += Math.cos(angle)*stealer.speed;
+      stealer.y += Math.sin(angle)*stealer.speed;
 
-        // If no healer → chase player
-        let angle = Math.atan2(player.y - stealer.y, player.x - stealer.x);
-        stealer.x += Math.cos(angle) * stealer.speed;
-        stealer.y += Math.sin(angle) * stealer.speed;
-
-        ctx.drawImage(stealerImg, stealer.x - 57, stealer.y - 57, 115, 115);
-
-        if (Math.hypot(stealer.x - player.x, stealer.y - player.y) < 70) {
-            player.health -= 0.8;
-        }
+      if(Math.hypot(stealer.x-player.x,stealer.y-player.y)<70){
+        player.health -= 0.8;
+      }
     }
-}
 
-/* Draw healer ONLY if not carried */
-if (healer && !(stealer && stealer.carrying)) {
-    ctx.drawImage(healerImg, healer.x - 47, healer.y - 47, 95, 95);
+    ctx.drawImage(stealerImg, stealer.x-57, stealer.y-57,115,115);
+  }
 
-    if (Math.hypot(player.x - healer.x, player.y - healer.y) < 70) {
-        player.health = Math.min(100, player.health + 40);
-        healer = null;
-        stealer = null;
-    }
-}
-
-
-  /* ===== BOSS ===== */
+  /* BOSS */
   if(boss){
     let angle = Math.atan2(player.y-boss.y,player.x-boss.x);
     boss.x += Math.cos(angle)*boss.speed;
@@ -260,7 +239,7 @@ if (healer && !(stealer && stealer.carrying)) {
     ctx.drawImage(enemyImg,boss.x-90,boss.y-90,180,180);
 
     if(Math.hypot(boss.x-player.x,boss.y-player.y)<85){
-      player.health-=0.6;
+      player.health -= 0.6;
     }
 
     if(boss.health<=0){
@@ -269,32 +248,28 @@ if (healer && !(stealer && stealer.carrying)) {
     }
   }
 
-  /* ===== HEART BULLETS ===== */
-  bullets = bullets.filter(b=>{
+  /* HEART BULLETS */
+  bullets.forEach((b,bi)=>{
     b.x+=b.dx;
     b.y+=b.dy;
-
-    if(b.x<0||b.x>canvas.width||b.y<0||b.y>canvas.height) return false;
 
     ctx.font="26px Arial";
     ctx.fillText("💖",b.x-13,b.y+13);
 
-    enemies.forEach((e,i)=>{
+    enemies.forEach((e,ei)=>{
       if(Math.hypot(e.x-b.x,e.y-b.y)<50){
-        enemies.splice(i,1);
+        enemies.splice(ei,1);
         score++;
       }
     });
 
     if(boss && Math.hypot(boss.x-b.x,boss.y-b.y)<85){
       boss.health--;
-      return false;
+      bullets.splice(bi,1);
     }
-
-    return true;
   });
 
-  /* ===== UI ===== */
+  /* UI */
   ctx.fillStyle="white";
   ctx.font="22px Arial";
   ctx.fillText("Score: "+score,20,30);
