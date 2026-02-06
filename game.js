@@ -3,6 +3,7 @@ const ctx = canvas.getContext("2d");
 const music = document.getElementById("bgMusic");
 const musicBtn = document.getElementById("musicBtn");
 
+// ===== CANVAS =====
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -13,6 +14,7 @@ canvas.style.touchAction = "none";
 document.body.style.margin = 0;
 document.body.style.overflow = "hidden";
 
+// ===== MUSIC =====
 let musicPlaying = false;
 musicBtn.onclick = () => {
   if (!musicPlaying) {
@@ -35,15 +37,12 @@ const stealerImg = new Image(); stealerImg.src = "stealer.png";
 let player = {
   x: canvas.width / 2,
   y: canvas.height / 2,
-  size: 120,
-  health: 100,
-  shield: false,
-  shieldTimer: 0
+  size: 130,
+  health: 100
 };
 
 let targetX = player.x;
 let targetY = player.y;
-const isMobile = window.innerWidth < 768;
 
 window.addEventListener("mousemove", e => {
   targetX = e.clientX;
@@ -64,7 +63,7 @@ let stealer = null;
 let score = 0;
 let gameOver = false;
 
-// ===== ENEMY SPAWN (BALANCED) =====
+// ===== NORMAL ENEMIES =====
 function spawnEnemy() {
   let side = Math.floor(Math.random() * 4);
   let x, y;
@@ -78,33 +77,41 @@ function spawnEnemy() {
     x,
     y,
     size: 90,
-    speed: 1.5 + score * 0.02
+    speed: 1.4
   });
 }
 
+setInterval(() => {
+  if (!gameOver) spawnEnemy();
+}, 2200);
+
 // ===== HEALER SPAWN =====
-function spawnHealer() {
-  healer = {
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    size: 80
-  };
-}
+setInterval(() => {
+  if (!gameOver && !healer) {
+    healer = {
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: 90
+    };
 
-// ===== STEALER SPAWN =====
-function spawnStealer() {
-  stealer = {
-    x: Math.random() * canvas.width,
-    y: 0,
-    size: 90,
-    speed: 2
-  };
-}
+    // Spawn stealer after 2 seconds
+    setTimeout(() => {
+      if (healer) {
+        stealer = {
+          x: Math.random() < 0.5 ? 0 : canvas.width,
+          y: Math.random() * canvas.height,
+          size: 110,
+          speed: 3.5  // FAST
+        };
+      }
+    }, 2000);
+  }
+}, 12000);
 
-// ===== AUTO HEART SHOOT =====
+// ===== AUTO SHOOT =====
 setInterval(() => {
   if (gameOver) return;
-  if (bullets.length > 20) bullets.shift();
+  if (bullets.length > 15) bullets.shift();
 
   let closest = null;
   let minDist = Infinity;
@@ -126,7 +133,7 @@ setInterval(() => {
       dy: Math.sin(angle) * 6
     });
   }
-}, 400);
+}, 500);
 
 // ===== GAME LOOP =====
 function gameLoop() {
@@ -134,30 +141,16 @@ function gameLoop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  let smooth = isMobile ? 0.22 : 0.15;
-  player.x += (targetX - player.x) * smooth;
-  player.y += (targetY - player.y) * smooth;
+  // Smooth movement
+  player.x += (targetX - player.x) * 0.18;
+  player.y += (targetY - player.y) * 0.18;
 
-  player.x = Math.max(player.size/2, Math.min(canvas.width - player.size/2, player.x));
-  player.y = Math.max(player.size/2, Math.min(canvas.height - player.size/2, player.y));
+  player.x = Math.max(65, Math.min(canvas.width - 65, player.x));
+  player.y = Math.max(65, Math.min(canvas.height - 65, player.y));
 
-  ctx.drawImage(gfImg, player.x - 60, player.y - 60, 120, 120);
+  ctx.drawImage(gfImg, player.x - 65, player.y - 65, 130, 130);
 
-  // Shield
-  if (player.shield) {
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, 80, 0, Math.PI * 2);
-    ctx.strokeStyle = "hotpink";
-    ctx.lineWidth = 5;
-    ctx.stroke();
-
-    player.shieldTimer--;
-    if (player.shieldTimer <= 0) player.shield = false;
-  }
-
-  // Spawn enemies slowly
-  if (Math.random() < 0.015) spawnEnemy();
-
+  // ===== ENEMIES =====
   enemies.forEach((e, i) => {
     let angle = Math.atan2(player.y - e.y, player.x - e.x);
     e.x += Math.cos(angle) * e.speed;
@@ -165,39 +158,40 @@ function gameLoop() {
 
     ctx.drawImage(enemyImg, e.x - 45, e.y - 45, 90, 90);
 
-    if (!player.shield && Math.hypot(e.x - player.x, e.y - player.y) < 50) {
-      player.health -= 0.3;
+    if (Math.hypot(e.x - player.x, e.y - player.y) < 55) {
+      player.health -= 0.2;
     }
   });
 
-  // ===== HEALER LOGIC =====
-  if (!healer && Math.random() < 0.002) spawnHealer();
-
+  // ===== HEALER =====
   if (healer) {
-    ctx.drawImage(healerImg, healer.x - 40, healer.y - 40, 80, 80);
+    ctx.drawImage(healerImg, healer.x - 45, healer.y - 45, 90, 90);
 
-    if (Math.hypot(player.x - healer.x, player.y - healer.y) < 60) {
-      player.health = Math.min(100, player.health + 30);
+    if (Math.hypot(player.x - healer.x, player.y - healer.y) < 70) {
+      player.health = Math.min(100, player.health + 40);
       healer = null;
+      stealer = null;
     }
   }
 
-  // ===== STEALER LOGIC =====
-  if (healer && !stealer && Math.random() < 0.005) spawnStealer();
-
+  // ===== STEALER (CANNOT BE KILLED) =====
   if (stealer) {
-    let angle = healer
-      ? Math.atan2(healer.y - stealer.y, healer.x - stealer.x)
-      : Math.atan2(player.y - stealer.y, player.x - stealer.x);
-
+    let target = healer ? healer : player;
+    let angle = Math.atan2(target.y - stealer.y, target.x - stealer.x);
     stealer.x += Math.cos(angle) * stealer.speed;
     stealer.y += Math.sin(angle) * stealer.speed;
 
-    ctx.drawImage(stealerImg, stealer.x - 45, stealer.y - 45, 90, 90);
+    ctx.drawImage(stealerImg, stealer.x - 55, stealer.y - 55, 110, 110);
 
-    if (healer && Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 50) {
-      healer = null; // steals healer
+    // If reaches healer
+    if (healer && Math.hypot(stealer.x - healer.x, stealer.y - healer.y) < 60) {
+      healer = null;
       stealer = null;
+    }
+
+    // If touches player = BIG DAMAGE
+    if (Math.hypot(stealer.x - player.x, stealer.y - player.y) < 70) {
+      player.health -= 1;
     }
   }
 
@@ -211,11 +205,11 @@ function gameLoop() {
       return;
     }
 
-    ctx.font = "22px Arial";
-    ctx.fillText("💖", b.x - 10, b.y + 10);
+    ctx.font = "24px Arial";
+    ctx.fillText("💖", b.x - 12, b.y + 12);
 
     enemies.forEach((e, ei) => {
-      if (Math.hypot(e.x - b.x, e.y - b.y) < 45) {
+      if (Math.hypot(e.x - b.x, e.y - b.y) < 50) {
         enemies.splice(ei, 1);
         bullets.splice(bi, 1);
         score++;
@@ -223,7 +217,7 @@ function gameLoop() {
     });
   });
 
-  // UI
+  // ===== UI =====
   ctx.fillStyle = "white";
   ctx.font = "22px Arial";
   ctx.fillText("Score: " + score, 20, 30);
